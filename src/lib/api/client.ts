@@ -4,7 +4,6 @@ import { safeJson } from "./parse";
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export type FetchOptions = {
-  
   method?: HttpMethod;
   headers?: Record<string, string>;
   body?: unknown;
@@ -13,7 +12,6 @@ export type FetchOptions = {
   retryOnStatuses?: number[];
   signal?: AbortSignal;
   cache?: RequestCache;
-
 };
 
 function sleep(ms: number) {
@@ -21,17 +19,16 @@ function sleep(ms: number) {
 }
 
 function expoBackoff(attempt: number, base = 300, cap = 4000) {
-
   const exp = Math.min(cap, base * 2 ** attempt);
   const jitter = Math.random() * base;
   return exp + jitter;
-
 }
 
-export async function http<T = unknown>(url: string, opts: FetchOptions = {}): Promise<T> {
-  
-    const {
-    
+export async function http<T = unknown>(
+  url: string,
+  opts: FetchOptions = {}
+): Promise<T> {
+  const {
     method = "GET",
     headers = {},
     body,
@@ -40,132 +37,94 @@ export async function http<T = unknown>(url: string, opts: FetchOptions = {}): P
     retryOnStatuses = [429, 503, 504],
     signal: externalSignal,
     cache,
-
   } = opts;
 
-  // timeout + cancelamento
+  // Timeout + cancelamento
   const controller = new AbortController();
-
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   if (externalSignal) {
-
     if (externalSignal.aborted) controller.abort();
-
-    else externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
-
+    else
+      externalSignal.addEventListener("abort", () => controller.abort(), {
+        once: true,
+      });
   }
 
-  // monta headers
+  // Headers
   const computedHeaders: Record<string, string> = { ...headers };
   if (body != null && computedHeaders["Content-Type"] == null) {
-
     computedHeaders["Content-Type"] = "application/json";
-
   }
 
-  // build do requestInit
+  // RequestInit — com `exactOptionalPropertyTypes`, use `null` quando ausente
   const init: RequestInit = {
     method,
     headers: computedHeaders,
-    ...(body != null ? ({ body: JSON.stringify(body) } as RequestInit) : {}),
-    ...(cache !== undefined ? ({ cache } as RequestInit) : {}),
+    body: body != null ? (JSON.stringify(body) as BodyInit) : null,
     signal: controller.signal,
+    ...(cache !== undefined ? { cache } : {}),
   };
 
   let lastErr: unknown;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-
       const res = await fetch(url, init);
 
       if (res.ok) {
-        
         if (res.status === 204) {
-          
-            clearTimeout(timeout);
+          clearTimeout(timeout);
           return undefined as unknown as T;
-
         }
-
         const data = await safeJson<T>(res);
         clearTimeout(timeout);
-
         return data;
-
       }
 
-      // corpo de erro
+      // Tenta extrair corpo de erro (não-fatal)
       const maybeBody = await safeJson<unknown>(res).catch(() => undefined);
 
-      // retentavel
+      // Retentável?
       if (retryOnStatuses.includes(res.status) && attempt < retries) {
-
-    
-        const wait = expoBackoff(attempt);
-        await sleep(wait);
-
+        await sleep(expoBackoff(attempt));
         continue;
-
       }
 
-      // não retentavel - lance httpError
       throw new HttpError(`HTTP ${res.status} for ${url}`, res.status, url, maybeBody);
-
     } catch (err: any) {
       lastErr = err;
 
-      // timeout / Abort
+      // Timeout / Abort
       if (err?.name === "AbortError") {
-        
         if (attempt < retries) {
-          
-            const wait = expoBackoff(attempt);
-          await sleep(wait);
+          await sleep(expoBackoff(attempt));
           continue;
-
         }
-
         clearTimeout(timeout);
         throw new TimeoutError();
-
       }
 
-      // erro de rede
+      // Erro de rede (fetch lança TypeError)
       if (err instanceof TypeError) {
-        
         if (attempt < retries) {
-          
-            const wait = expoBackoff(attempt);
-          await sleep(wait);
+          await sleep(expoBackoff(attempt));
           continue;
-
         }
-        
         clearTimeout(timeout);
         throw new NetworkError(err.message);
-
       }
 
-
-      // outros erros
+      // Outros erros
       if (attempt < retries) {
-        
-        const wait = expoBackoff(attempt);
-        await sleep(wait);
+        await sleep(expoBackoff(attempt));
         continue;
-
       }
       clearTimeout(timeout);
-    
       throw err;
-
     }
-
   }
 
   clearTimeout(timeout);
-  throw (lastErr ?? new NetworkError("Unknown error"));
-  
+  throw lastErr ?? new NetworkError("Unknown error");
 }
