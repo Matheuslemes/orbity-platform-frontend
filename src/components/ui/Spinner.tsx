@@ -1,18 +1,16 @@
-export default function Spinner({ size = 18 }: { size?: number }) {
+import { Loader2Icon } from 'lucide-react'
+
+import { cn } from '@/lib/utils'
+
+function Spinner({ className, ...props }: React.ComponentProps<'svg'>) {
   return (
-    <span
+    <Loader2Icon
       role="status"
-      aria-live="polite"
       aria-label="Loading"
-      style={{
-        width: size,
-        height: size,
-        border: "2px solid rgba(255,255,255,0.25)",
-        borderTopColor: "var(--orbity-accent-2)",
-        borderRadius: "50%",
-        display: "inline-block",
-        animation: "spin .9s linear infinite",
-      }}
+      className={cn('size-4 animate-spin', className)}
+      {...props}
     />
-  );
+  )
 }
+
+export { Spinner }

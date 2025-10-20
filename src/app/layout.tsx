@@ -1,42 +1,69 @@
-// SERVER COMPONENT (sem "use client")
-import type { Metadata, Viewport } from "next";
-import type { ReactNode } from "react";
-import Providers from "./providers";
-import { Geist, Geist_Mono } from "next/font/google";
-import "../styles/globals.css";
+import type React from "react"
+import type { Metadata, Viewport } from "next"
+import { GeistSans } from "geist/font/sans"
+import { GeistMono } from "geist/font/mono"
+import { Analytics } from "@vercel/analytics/next"
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+import "./globals.css"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
+import { Suspense } from "react"
+import { DevDataToggle } from "@/components/dev-data-toggle" // (client) – aparece só em dev
 
 export const metadata: Metadata = {
-  title: { default: "Orbity — Frontend", template: "%s — Orbity" },
-  description: "Next.js + TypeScript storefront integrating orbity-platform-backend",
-};
+  title: "Orbity Tech - Explore o Cosmos da Tecnologia",
+  description:
+    "E-commerce de tecnologia com tema espacial. Laptops, desktops, periféricos e componentes.",
+  generator: "v0.app",
+  applicationName: "Orbity Tech",
+  icons: [{ rel: "icon", url: "/favicon.ico" }],
+  openGraph: {
+    title: "Orbity Tech",
+    description:
+      "Explore o cosmos da tecnologia — notebooks, smartphones, periféricos e componentes.",
+    type: "website",
+  },
+}
 
 export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  themeColor: "#061427",
-  colorScheme: "dark light",
-};
+  themeColor: [{ media: "(prefers-color-scheme: dark)", color: "#070b16" }],
+}
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  const isDev = process.env.NODE_ENV !== "production"
+
   return (
     <html lang="pt-BR" className="dark" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {/* Skip link sem handlers */}
-        <a href="#orbity-content" className="skip-link">Pular para o conteúdo</a>
+      <body
+        className={[
+          "min-h-dvh antialiased",
+          "bg-background text-foreground",
+          "font-sans",
+          GeistSans.variable,
+          GeistMono.variable,
+        ].join(" ")}
+      >
+        <Header />
 
-        <Providers>
-          {/* Mantém o conteúdo sempre acima do fundo */}
-          <main
-            id="orbity-content"
-            style={{ minHeight: "100vh", position: "relative", zIndex: 2 }}
-          >
+        {/* Suspense apenas no conteúdo da página */}
+        <main className="min-h-[60vh]">
+          <Suspense fallback={<div className="p-6">Carregando…</div>}>
             {children}
-          </main>
-        </Providers>
+          </Suspense>
+        </main>
+
+        <Footer />
+
+        {/* Toggle para alternar MOCK ↔ API (só em dev) */}
+        {isDev ? <DevDataToggle /> : null}
+
+        <Analytics />
+
+        {/* No-script básico para acessibilidade */}
+        <noscript>Ative o JavaScript para melhor experiência.</noscript>
       </body>
     </html>
-  );
+  )
 }
