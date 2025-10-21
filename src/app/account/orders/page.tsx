@@ -1,191 +1,254 @@
-"use client"
-
-import { useState } from "react"
 import Link from "next/link"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useOrders } from "@/lib/hooks/use-orders"
-import { Package, CreditCard, Truck } from "lucide-react"
-import { EmptyState } from "@/components/empty-state"
-import { ProductSkeleton } from "@/components/product-skeleton"
-import type { OrderStatus } from "@/lib/schemas/api"
+import CancelOrderButton from "@/components/cancel-button" // botão client
 
-const statusConfig = {
-  placed: { label: "Confirmado", color: "var(--primary)" },
-  paid: { label: "Pago", color: "var(--primary)" },
-  processing: { label: "Em separação", color: "var(--warning)" },
-  shipped: { label: "Enviado", color: "var(--accent)" },
-  delivered: { label: "Entregue", color: "var(--success)" },
-  canceled: { label: "Cancelado", color: "var(--destructive)" },
+//  Tipos (compatível com mock e API) 
+type OrderStatus = "confirmed" | "processing" | "shipped" | "delivered" | "canceled"
+
+type Order = {
+  id: string
+  date: string
+  status: OrderStatus
+  total: number
+  items: {
+    product: { name: string; slug?: string; image?: string }
+    quantity: number
+    price: number
+  }[]
+  shipping?: {
+    carrier: string
+    tracking?: string
+    eta?: string
+    address: { street: string; city: string; state: string; zip: string }
+  }
+  payment?: { method: string; last4?: string }
+  timeline?: { status: string; date: string; completed: boolean }[]
 }
 
-export default function OrdersPage() {
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all")
-  const [periodFilter, setPeriodFilter] = useState("all")
+//  Fallback mock (render mesmo com 401 da API) 
+const FALLBACK_ORDERS: Order[] = [
+  {
+    id: "ORB-2025-001234",
+    date: "2025-01-08T14:30:00Z",
+    status: "shipped",
+    total: 7499.9,
+    items: [
+      {
+        product: {
+          name: 'Creator Pro 14" - Laptop Premium para Criadores',
+          slug: "laptop-creator-pro-14",
+          image: "/modern-laptop-with-sleek-design.jpg",
+        },
+        quantity: 1,
+        price: 7499.9,
+      },
+    ],
+    shipping: {
+      carrier: "Correios (SEDEX)",
+      tracking: "BR123456789BR",
+      eta: "2025-01-12",
+      address: { street: "Rua das Estrelas, 123", city: "São Paulo", state: "SP", zip: "01234-567" },
+    },
+    payment: { method: "Cartão de Crédito", last4: "4242" },
+    timeline: [
+      { status: "Pedido confirmado", date: "2025-01-08 14:30", completed: true },
+      { status: "Em separação", date: "2025-01-08 16:45", completed: true },
+      { status: "Enviado", date: "2025-01-09 09:20", completed: true },
+      { status: "Em trânsito", date: "2025-01-09 14:00", completed: true },
+      { status: "Saiu para entrega", date: "", completed: false },
+      { status: "Entregue", date: "", completed: false },
+    ],
+  },
+  {
+    id: "ORB-2025-001198",
+    date: "2025-01-05T10:10:00Z",
+    status: "delivered",
+    total: 3649.7,
+    items: [
+      {
+        product: {
+          name: "Teclado Mecânico RGB - Switch Tátil",
+          slug: "mechanical-keyboard-rgb",
+          image: "/mechanical-keyboard-with-rgb-backlight.jpg",
+        },
+        quantity: 1,
+        price: 699.9,
+      },
+      {
+        product: {
+          name: "Mouse Wireless Pro - Sensor 26K DPI",
+          slug: "wireless-mouse-pro",
+          image: "/wireless-gaming-mouse-black.jpg",
+        },
+        quantity: 1,
+        price: 449.9,
+      },
+      {
+        product: {
+          name: 'Monitor 4K 27" 144Hz - Gaming & Criação',
+          slug: "monitor-4k-27-144hz",
+          image: "/4k-gaming-monitor-with-thin-bezels.jpg",
+        },
+        quantity: 1,
+        price: 2499.9,
+      },
+    ],
+    shipping: {
+      carrier: "Loggi",
+      tracking: "LG-9044-88-1",
+      eta: "2025-01-06",
+      address: { street: "Av. Andrômeda, 987", city: "Barueri", state: "SP", zip: "06473-000" },
+    },
+    payment: { method: "Pix" },
+    timeline: [
+      { status: "Pedido confirmado", date: "2025-01-05 10:10", completed: true },
+      { status: "Em separação", date: "2025-01-05 11:00", completed: true },
+      { status: "Enviado", date: "2025-01-05 15:20", completed: true },
+      { status: "Entregue", date: "2025-01-06 12:43", completed: true },
+    ],
+  },
+]
 
-  const { orders, isLoading, isError } = useOrders({
-    status: statusFilter !== "all" ? statusFilter : undefined,
-    period: periodFilter !== "all" ? periodFilter : undefined,
-  })
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen">
-        <div className="container mx-auto px-4 py-8">
-          <h1 className="text-3xl font-bold mb-8">Meus Pedidos</h1>
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <ProductSkeleton key={i} />
-            ))}
-          </div>
-        </div>
-      </div>
-    )
+// ---------------- Fetch com fallback ----------------
+async function getOrders(): Promise<Order[]> {
+  try {
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? ""
+    const res = await fetch(`${base}/api/orders`, { cache: "no-store" })
+    if (!res.ok) throw new Error("not ok")
+    return (await res.json()) as Order[]
+  } catch {
+    return FALLBACK_ORDERS
   }
+}
 
-  if (isError) {
-    return (
-      <div className="min-h-screen">
-        <div className="container mx-auto px-4 py-12">
-          <EmptyState
-            title="Erro ao carregar pedidos"
-            description="Não foi possível carregar seus pedidos. Tente novamente."
-          />
-        </div>
-      </div>
-    )
-  }
+// ---------------- UI helpers ----------------
+function currency(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+}
 
-  if (orders.length === 0) {
-    return (
-      <div className="min-h-screen">
-        <div className="container mx-auto px-4 py-12">
-          <EmptyState title="Nenhum pedido encontrado" description="Você ainda não fez nenhum pedido" showSuggestions />
-        </div>
-      </div>
-    )
+function StatusBadge({ status }: { status: Order["status"] }) {
+  const map: Record<OrderStatus, string> = {
+    confirmed: "bg-blue-500/15 text-blue-300 border-blue-400/30",
+    processing: "bg-amber-500/15 text-amber-300 border-amber-400/30",
+    shipped: "bg-cyan-500/15 text-cyan-300 border-cyan-400/30",
+    delivered: "bg-emerald-500/15 text-emerald-300 border-emerald-400/30",
+    canceled: "bg-rose-500/15 text-rose-300 border-rose-400/30",
   }
+  return <span className={`inline-flex px-2 py-1 rounded-md border text-xs capitalize ${map[status]}`}>{status}</span>
+}
+
+// aparece para tudo que NÃO for entregue nem cancelado
+function canCancel(status: OrderStatus) {
+  return status !== "delivered" && status !== "canceled"
+}
+
+export const metadata = { title: "Meus Pedidos - Orbity" }
+
+export default async function OrdersPage() {
+  const orders = await getOrders()
 
   return (
-    <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Meus Pedidos</h1>
+    <section className="space-y-6">
+      {orders.length === 0 && (
+        <div className="rounded-xl border p-6 text-center text-muted-foreground">Você ainda não possui pedidos.</div>
+      )}
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as OrderStatus | "all")}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="placed">Confirmado</SelectItem>
-              <SelectItem value="processing">Em separação</SelectItem>
-              <SelectItem value="shipped">Enviado</SelectItem>
-              <SelectItem value="delivered">Entregue</SelectItem>
-            </SelectContent>
-          </Select>
+      {orders.map((o) => (
+        <div key={o.id} className="rounded-xl border p-5 md:p-6 bg-card">
+          {/* header do pedido */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm text-muted-foreground">Pedido</div>
+              <div className="font-semibold">{o.id}</div>
+            </div>
 
-          <Select value={periodFilter} onValueChange={setPeriodFilter}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os períodos</SelectItem>
-              <SelectItem value="30days">Últimos 30 dias</SelectItem>
-              <SelectItem value="3months">Últimos 3 meses</SelectItem>
-              <SelectItem value="6months">Últimos 6 meses</SelectItem>
-              <SelectItem value="year">Último ano</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+            <div>
+              <div className="text-sm text-muted-foreground">Data</div>
+              <div>{new Date(o.date).toLocaleString("pt-BR")}</div>
+            </div>
 
-        {/* Orders List */}
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <div
-              key={order.id}
-              className="p-6 rounded-lg border"
-              style={{ backgroundColor: "var(--bg-elev)", borderColor: "var(--border)" }}
-            >
-              {/* Order Header */}
-              <div
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h3 className="font-semibold">Pedido #{order.id}</h3>
-                    <Badge
-                      variant="secondary"
-                      style={{
-                        backgroundColor: statusConfig[order.status].color + "20",
-                        color: statusConfig[order.status].color,
-                      }}
-                    >
-                      {statusConfig[order.status].label}
-                    </Badge>
+            {/* Status + Cancelar (quando possível) */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="text-sm text-muted-foreground">Status</div>
+              <StatusBadge status={o.status} />
+              {canCancel(o.status) && <CancelOrderButton id={o.id} />}
+            </div>
+
+            <div>
+              <div className="text-sm text-muted-foreground">Total</div>
+              <div className="font-semibold">{currency(o.total)}</div>
+            </div>
+          </div>
+
+          {/* itens */}
+          <div className="mt-4 border-t pt-4 space-y-3">
+            {o.items.map((it, idx) => (
+              <div key={idx} className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="truncate">
+                    {it.product.slug ? (
+                      <Link href={`/p/${it.product.slug}`} className="hover:underline">
+                        {it.product.name}
+                      </Link>
+                    ) : (
+                      it.product.name
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Realizado em {new Date(order.createdAt).toLocaleDateString("pt-BR")}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold tabular-nums" style={{ color: "var(--primary)" }}>
-                    R$ {order.total.toFixed(2).replace(".", ",")}
-                  </p>
-                </div>
-              </div>
-
-              {/* Order Items */}
-              <div className="space-y-3 mb-4">
-                {order.items.map((item, index) => (
-                  <div key={index} className="flex gap-3">
-                    <div className="relative w-16 h-16 flex-shrink-0 rounded-md overflow-hidden">
-                      <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium line-clamp-2">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">Quantidade: {item.qty}</p>
-                    </div>
+                  <div className="text-xs text-muted-foreground">
+                    Qtd: {it.quantity} · Preço unit.: {currency(it.price)}
                   </div>
-                ))}
-              </div>
-
-              {/* Order Info */}
-              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  <span>
-                    {order.payment.method} {order.payment.last4 && `•••• ${order.payment.last4}`}
-                  </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Truck className="h-4 w-4" />
-                  <span>
-                    {order.address.street}, {order.address.city}
-                  </span>
-                </div>
+                <div className="text-sm font-medium">{currency(it.price * it.quantity)}</div>
               </div>
+            ))}
+          </div>
 
-              {/* Actions */}
-              <div className="flex gap-2">
-                <Button asChild variant="outline" className="bg-transparent">
-                  <Link href={`/account/orders/${order.id}`}>
-                    <Package className="mr-2 h-4 w-4" />
-                    Ver detalhes
-                  </Link>
-                </Button>
-                <Button variant="outline" className="bg-transparent">
-                  Repetir compra
-                </Button>
+          {/* shipping + pagamento */}
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border p-4">
+              <div className="text-sm text-muted-foreground mb-1">Envio</div>
+              <div className="text-sm">
+                {o.shipping?.carrier || "—"}{" "}
+                {o.shipping?.tracking ? (
+                  <span className="text-muted-foreground">· Código: {o.shipping.tracking}</span>
+                ) : null}
+              </div>
+              {o.shipping?.eta && (
+                <div className="text-xs text-muted-foreground">
+                  Previsão: {new Date(o.shipping.eta).toLocaleDateString("pt-BR")}
+                </div>
+              )}
+              {o.shipping?.address && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  {o.shipping.address.street}, {o.shipping.address.city} - {o.shipping.address.state} ·{" "}
+                  {o.shipping.address.zip}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border p-4">
+              <div className="text-sm text-muted-foreground mb-1">Pagamento</div>
+              <div className="text-sm">
+                {o.payment?.method || "—"}{" "}
+                {o.payment?.last4 ? <span className="text-muted-foreground">· **** {o.payment.last4}</span> : null}
               </div>
             </div>
-          ))}
+          </div>
+
+          {/* ações secundárias (rodapé) */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {o.shipping?.tracking && (
+              <a
+                href={`https://rastreamento.correios.com.br/app/index.php`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-2 rounded-md border hover:bg-muted transition text-sm"
+              >
+                Rastreamento
+              </a>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      ))}
+    </section>
   )
 }

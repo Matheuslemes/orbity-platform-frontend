@@ -1,40 +1,50 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { apiRequest } from "@/lib/http/client"
-import { OrderSchema } from "@/lib/schemas/api"
-import { CacheControl } from "@/lib/http/cache"
-import { requireAuth } from "@/lib/auth/session"
+import { NextResponse } from "next/server"
+import { getSession } from "@/lib/auth/session"
+import { mockOrders } from "@/lib/mock-datas"
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+function resolveDataMode(): "mock" | "api" {
+  const dm = process.env.DATA_MODE?.toLowerCase()
+  return dm === "api" ? "api" : "mock"
+}
+
+async function cancelOrderInApi(id: string, bearer?: string) {
+  const base = process.env.NEXT_PUBLIC_API_GATEWAY_URL || process.env.API_GATEWAY_URL
+  if (!base) throw new Error("API_GATEWAY_URL not set")
+  const url = new URL(`/orders/${encodeURIComponent(id)}/cancel`, base)
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
+    },
+  })
+  if (!res.ok) throw new Error(`order cancel failed: ${res.status}`)
+  return res.json()
+}
+
+export async function POST(_req: Request, ctx: { params: { id: string } }) {
   try {
-    const session = await requireAuth()
-    const { id } = await params
+    const session = await getSession()
+    const mode = resolveDataMode()
+    const id = ctx.params.id
 
-    // Call API Gateway with auth token
-    const data = await apiRequest(`/orders/${id}/cancel`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-      },
-    })
+    if (!session && mode === "api") {
+      return NextResponse.json({ code: "UNAUTHORIZED", message: "Not authenticated" }, { status: 401 })
+    }
 
-    // Validate response
-    const validated = OrderSchema.parse(data)
+    if (mode === "api") {
+      const data = await cancelOrderInApi(id, session!.accessToken)
+      return NextResponse.json(data)
+    }
 
-    return NextResponse.json(validated, {
-      headers: CacheControl.private(),
-    })
+    // mock: valida e retorna ok
+    const exists = mockOrders.some((o) => o.id === id)
+    if (!exists) {
+      return NextResponse.json({ code: "ORDER_NOT_FOUND", message: "Pedido não encontrado" }, { status: 404 })
+    }
+    return NextResponse.json({ ok: true, id, status: "canceled (mock)" })
   } catch (error) {
-    console.error("[v0] Cancel order error:", error)
-
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ code: "UNAUTHORIZED", message: "Authentication required" }, { status: 401 })
-    }
-
-    if (error instanceof Error && "status" in error) {
-      const httpError = error as { status: number; code: string; message: string }
-      return NextResponse.json({ code: httpError.code, message: httpError.message }, { status: httpError.status })
-    }
-
-    return NextResponse.json({ code: "CANCEL_ORDER_ERROR", message: "Failed to cancel order" }, { status: 500 })
+    console.error("[orders/:id/cancel] POST error:", error)
+    return NextResponse.json({ code: "ORDER_CANCEL_ERROR", message: "Falha ao cancelar pedido" }, { status: 500 })
   }
 }

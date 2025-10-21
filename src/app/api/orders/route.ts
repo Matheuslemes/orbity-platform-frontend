@@ -1,112 +1,46 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { apiRequest } from "@/lib/http/client"
-import { OrderSchema, OrderListSchema } from "@/lib/schemas/api"
+import { NextResponse } from "next/server"
+import { getSession } from "@/lib/auth/session"
 import { CacheControl } from "@/lib/http/cache"
-import { requireAuth } from "@/lib/auth/session"
-import { z } from "zod"
+import { mockOrders } from "@/lib/mock-datas"
 
-const CreateOrderSchema = z.object({
-  checkoutId: z.string(),
-  addressId: z.string(),
-  shippingOptionId: z.string(),
-  paymentIntentId: z.string(),
-})
-
-export async function GET(request: NextRequest) {
-  try {
-    const session = await requireAuth()
-    const searchParams = request.nextUrl.searchParams
-
-    // Build query string
-    const params = new URLSearchParams()
-
-    const page = searchParams.get("page") || "1"
-    const pageSize = searchParams.get("pageSize") || "10"
-    params.set("page", page)
-    params.set("pageSize", pageSize)
-
-    const status = searchParams.get("status")
-    if (status) params.set("status", status)
-
-    const period = searchParams.get("period")
-    if (period) params.set("period", period)
-
-    // Call API Gateway with auth token
-    const data = await apiRequest(`/orders?${params.toString()}`, {
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-      },
-    })
-
-    // Validate response
-    const validated = OrderListSchema.parse(data)
-
-    return NextResponse.json(validated, {
-      headers: CacheControl.private(),
-    })
-  } catch (error) {
-    console.error("[v0] Get orders error:", error)
-
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ code: "UNAUTHORIZED", message: "Authentication required" }, { status: 401 })
-    }
-
-    if (error instanceof Error && "status" in error) {
-      const httpError = error as { status: number; code: string; message: string }
-      return NextResponse.json({ code: httpError.code, message: httpError.message }, { status: httpError.status })
-    }
-
-    return NextResponse.json({ code: "GET_ORDERS_ERROR", message: "Failed to get orders" }, { status: 500 })
-  }
+function resolveDataMode(): "mock" | "api" {
+  const dm = process.env.DATA_MODE?.toLowerCase()
+  return dm === "api" ? "api" : "mock"
 }
 
-export async function POST(request: NextRequest) {
+async function fetchOrdersFromApi(userId: string, bearer?: string) {
+  const base = process.env.NEXT_PUBLIC_API_GATEWAY_URL || process.env.API_GATEWAY_URL
+  if (!base) throw new Error("API_GATEWAY_URL not set")
+
+  const url = new URL(`/orders?customerId=${encodeURIComponent(userId)}`, base)
+  const res = await fetch(url, {
+    headers: {
+      "content-type": "application/json",
+      ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
+    },
+    next: { revalidate: 30 },
+  })
+  if (!res.ok) throw new Error(`orders list failed: ${res.status}`)
+  return res.json()
+}
+
+export async function GET() {
   try {
-    const session = await requireAuth()
+    const session = await getSession()
+    const mode = resolveDataMode()
 
-    // Parse request body
-    const body = await request.json()
-    const validated = CreateOrderSchema.parse(body)
+    if (!session && mode === "api") {
+      return NextResponse.json({ code: "UNAUTHORIZED", message: "Not authenticated" }, { status: 401 })
+    }
 
-    // Generate idempotency key for order creation
-    const idempotencyKey = crypto.randomUUID()
+    const data =
+      mode === "api"
+        ? await fetchOrdersFromApi(session!.id, session!.accessToken)
+        : mockOrders
 
-    // Call API Gateway with auth token and idempotency key
-    const data = await apiRequest("/orders", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-      },
-      body: JSON.stringify(validated),
-      idempotencyKey,
-    })
-
-    // Validate response
-    const order = OrderSchema.parse(data)
-
-    return NextResponse.json(order, {
-      status: 201,
-      headers: CacheControl.private(),
-    })
+    return NextResponse.json(data, { headers: CacheControl.private() })
   } catch (error) {
-    console.error("[v0] Create order error:", error)
-
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ code: "UNAUTHORIZED", message: "Authentication required" }, { status: 401 })
-    }
-
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { code: "VALIDATION_ERROR", message: "Invalid request data", details: error.errors },
-        { status: 400 },
-      )
-    }
-
-    if (error instanceof Error && "status" in error) {
-      const httpError = error as { status: number; code: string; message: string }
-      return NextResponse.json({ code: httpError.code, message: httpError.message }, { status: httpError.status })
-    }
-
-    return NextResponse.json({ code: "CREATE_ORDER_ERROR", message: "Failed to create order" }, { status: 500 })
+    console.error("[orders] GET error:", error)
+    return NextResponse.json({ code: "ORDERS_ERROR", message: "Falha ao obter pedidos" }, { status: 500 })
   }
 }

@@ -1,39 +1,51 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { apiRequest } from "@/lib/http/client"
-import { OrderSchema } from "@/lib/schemas/api"
+import { NextResponse } from "next/server"
+import { getSession } from "@/lib/auth/session"
 import { CacheControl } from "@/lib/http/cache"
-import { requireAuth } from "@/lib/auth/session"
+import { mockOrders } from "@/lib/mock-datas"
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+function resolveDataMode(): "mock" | "api" {
+  const dm = process.env.DATA_MODE?.toLowerCase()
+  return dm === "api" ? "api" : "mock"
+}
+
+async function fetchOrderFromApi(id: string, bearer?: string) {
+  const base = process.env.NEXT_PUBLIC_API_GATEWAY_URL || process.env.API_GATEWAY_URL
+  if (!base) throw new Error("API_GATEWAY_URL not set")
+  const url = new URL(`/orders/${encodeURIComponent(id)}`, base)
+  const res = await fetch(url, {
+    headers: {
+      "content-type": "application/json",
+      ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
+    },
+    next: { revalidate: 15 },
+  })
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`order get failed: ${res.status}`)
+  return res.json()
+}
+
+export async function GET(_req: Request, ctx: { params: { id: string } }) {
   try {
-    const session = await requireAuth()
-    const { id } = await params
+    const session = await getSession()
+    const mode = resolveDataMode()
+    const id = ctx.params.id
 
-    // Call API Gateway with auth token
-    const data = await apiRequest(`/orders/${id}`, {
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-      },
-    })
+    if (!session && mode === "api") {
+      return NextResponse.json({ code: "UNAUTHORIZED", message: "Not authenticated" }, { status: 401 })
+    }
 
-    // Validate response
-    const validated = OrderSchema.parse(data)
+    const data =
+      mode === "api"
+        ? await fetchOrderFromApi(id, session!.accessToken)
+        : mockOrders.find((o) => o.id === id) ?? null
 
-    return NextResponse.json(validated, {
-      headers: CacheControl.private(),
-    })
+    if (!data) {
+      return NextResponse.json({ code: "ORDER_NOT_FOUND", message: "Pedido não encontrado" }, { status: 404 })
+    }
+
+    return NextResponse.json(data, { headers: CacheControl.private() })
   } catch (error) {
-    console.error("[v0] Get order error:", error)
-
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ code: "UNAUTHORIZED", message: "Authentication required" }, { status: 401 })
-    }
-
-    if (error instanceof Error && "status" in error) {
-      const httpError = error as { status: number; code: string; message: string }
-      return NextResponse.json({ code: httpError.code, message: httpError.message }, { status: httpError.status })
-    }
-
-    return NextResponse.json({ code: "GET_ORDER_ERROR", message: "Failed to get order" }, { status: 500 })
+    console.error("[orders/:id] GET error:", error)
+    return NextResponse.json({ code: "ORDER_ERROR", message: "Falha ao obter pedido" }, { status: 500 })
   }
 }
