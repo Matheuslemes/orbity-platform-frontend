@@ -1,38 +1,35 @@
 import { NextResponse } from "next/server"
-import { apiRequest } from "@/lib/http/client"
-import { CartSchema } from "@/lib/schemas/api"
-import { CacheControl } from "@/lib/http/cache"
-import { requireAuth } from "@/lib/auth/session"
+import { apiRequest, HttpError } from "@/lib/http/client"
+
+function isMock() {
+  return process.env.NEXT_PUBLIC_API_MODE?.toLowerCase() === "mock" || process.env.MOCK === "true"
+}
 
 export async function GET() {
+  // MOCK opcional para dev
+  if (isMock()) {
+    return NextResponse.json(
+      { items: [], total: 0, currency: "BRL", updatedAt: new Date().toISOString() },
+      { status: 200 }
+    )
+  }
+
   try {
-    const session = await requireAuth()
-
-    // Call API Gateway with auth token
-    const data = await apiRequest("/cart", {
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-      },
+    // GARANTA que env.apiGatewayUrl tem protocolo (http/https) e está correto
+    const data = await apiRequest<{ items: any[]; total: number; currency: string }>("/cart", {
+      // se o gateway exigir auth/cookie e você quiser repassar algo extra, acrescente em headers:
+      // headers: { Authorization: `Bearer ${token}` },
+      timeout: 10000,
+      method: "GET",
     })
-
-    // Validate response
-    const validated = CartSchema.parse(data)
-
-    return NextResponse.json(validated, {
-      headers: CacheControl.private(),
-    })
-  } catch (error) {
-    console.error("[v0] Get cart error:", error)
-
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ code: "UNAUTHORIZED", message: "Authentication required" }, { status: 401 })
+    return NextResponse.json(data, { status: 200 })
+  } catch (e) {
+    if (e instanceof HttpError) {
+      // Loga o upstream e retorna código/erro consistentes
+      console.error("[cart] upstream error:", e.status, e.code, e.message)
+      return NextResponse.json({ code: e.code, message: e.message, details: e.details }, { status: e.status })
     }
-
-    if (error instanceof Error && "status" in error) {
-      const httpError = error as { status: number; code: string; message: string }
-      return NextResponse.json({ code: httpError.code, message: httpError.message }, { status: httpError.status })
-    }
-
-    return NextResponse.json({ code: "GET_CART_ERROR", message: "Failed to get cart" }, { status: 500 })
+    console.error("[cart] unknown error:", e)
+    return NextResponse.json({ code: "UNKNOWN", message: "Unknown error" }, { status: 500 })
   }
 }
