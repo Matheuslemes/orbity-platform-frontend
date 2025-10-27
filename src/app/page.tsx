@@ -10,12 +10,23 @@ import { useSearch, useCategories } from "@/lib/hooks/use-products"
 import { Rocket, Sparkles } from "lucide-react"
 import Link from "next/link"
 
+function ensureArray<T = any>(val: unknown): T[] {
+  return Array.isArray(val) ? (val as T[]) : []
+}
+
 export default function HomePage() {
-  const { products: newProducts, isLoading: loadingNew } = useSearch({ sort: "newest", pageSize: 4 })
-  const { products: saleProducts, isLoading: loadingSale } = useSearch({ sort: "discount", pageSize: 4 })
-  const { products: gamingProducts, isLoading: loadingGaming } = useSearch({ category: "gaming", pageSize: 4 })
-  const { products: laptopProducts, isLoading: loadingLaptops } = useSearch({ category: "laptops", pageSize: 4 })
-  const { categories, isLoading: loadingCategories } = useCategories()
+  const { products: newRaw,    isLoading: loadingNew }     = useSearch({ sort: "newest",   pageSize: 4 })
+  const { products: saleRaw,   isLoading: loadingSale }    = useSearch({ sort: "discount", pageSize: 4 })
+  const { products: gamingRaw, isLoading: loadingGaming }  = useSearch({ category: "gaming",  pageSize: 4 })
+  const { products: laptopRaw, isLoading: loadingLaptops } = useSearch({ category: "laptops", pageSize: 4 })
+  const { categories: catRaw,  isLoading: loadingCategories } = useCategories()
+
+  // Sempre arrays
+  const newProducts    = ensureArray(newRaw)
+  const saleProducts   = ensureArray(saleRaw)
+  const gamingProducts = ensureArray(gamingRaw)
+  const laptopProducts = ensureArray(laptopRaw)
+  const categories     = ensureArray(catRaw)
 
   return (
     <div className="min-h-screen">
@@ -24,10 +35,7 @@ export default function HomePage() {
         <div className="absolute inset-0 nebula-gradient" />
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center space-y-6">
-            <div
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border"
-              style={{ borderColor: "var(--border)", backgroundColor: "var(--surface)" }}
-            >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface)" }}>
               <Sparkles className="h-4 w-4" style={{ color: "var(--primary)" }} />
               <span className="text-sm font-medium">Novidades toda semana</span>
             </div>
@@ -42,12 +50,7 @@ export default function HomePage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                size="lg"
-                asChild
-                className="glow-primary"
-                style={{ backgroundColor: "var(--primary)", color: "var(--bg)" }}
-              >
+              <Button size="lg" asChild className="glow-primary" style={{ backgroundColor: "var(--primary)", color: "var(--bg)" }}>
                 <Link href="/search">
                   <Rocket className="mr-2 h-5 w-5" />
                   Explorar novidades
@@ -98,8 +101,8 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {newProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              {newProducts.map((product: any) => (
+                <ProductCard key={product.id} product={{ ...product, badges: product.badges ?? [] }} />
               ))}
             </div>
           )}
@@ -126,8 +129,8 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {saleProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              {saleProducts.map((product: any) => (
+                <ProductCard key={product.id} product={{ ...product, badges: product.badges ?? [] }} />
               ))}
             </div>
           )}
@@ -154,8 +157,8 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {gamingProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                  {gamingProducts.map((product: any) => (
+                    <ProductCard key={product.id} product={{ ...product, badges: product.badges ?? [] }} />
                   ))}
                 </div>
               )}
@@ -170,8 +173,8 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {laptopProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                  {laptopProducts.map((product: any) => (
+                    <ProductCard key={product.id} product={{ ...product, badges: product.badges ?? [] }} />
                   ))}
                 </div>
               )}
@@ -186,8 +189,8 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {laptopProducts.slice(0, 4).map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                  {ensureArray(laptopProducts).slice(0, 4).map((product: any) => (
+                    <ProductCard key={product.id} product={{ ...product, badges: product.badges ?? [] }} />
                   ))}
                 </div>
               )}
@@ -200,16 +203,8 @@ export default function HomePage() {
       <section className="py-16 border-t" style={{ borderColor: "var(--border)" }}>
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            <TrustBadge
-              icon="shield"
-              title="Garantia Oficial"
-              description="Todos os produtos com garantia do fabricante"
-            />
-            <TrustBadge
-              icon="rotate"
-              title="Devolução Fácil"
-              description="30 dias para trocar ou devolver sem complicação"
-            />
+            <TrustBadge icon="shield" title="Garantia Oficial" description="Todos os produtos com garantia do fabricante" />
+            <TrustBadge icon="rotate" title="Devolução Fácil" description="30 dias para trocar ou devolver sem complicação" />
             <TrustBadge icon="zap" title="Entrega Rápida" description="Receba em até 24h em regiões selecionadas" />
           </div>
         </div>

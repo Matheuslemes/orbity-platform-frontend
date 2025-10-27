@@ -14,9 +14,8 @@ export const metadata: Metadata = {
   title: "Orbity Tech - Explore o Cosmos da Tecnologia",
   description:
     "E-commerce de tecnologia com tema espacial. Laptops, desktops, periféricos e componentes.",
-  generator: "v0.app",
   applicationName: "Orbity Tech",
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
+  icons: [{ rel: "icon", url: "/logo-orbity.jpg" }],
   openGraph: {
     title: "Orbity Tech",
     description:
