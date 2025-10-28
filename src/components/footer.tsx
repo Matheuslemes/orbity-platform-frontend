@@ -21,26 +21,10 @@ export function Footer() {
           <div>
             <h3 className="font-semibold mb-4">Loja</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>
-                <Link href="/search?category=laptops" className="hover:text-foreground transition-colors">
-                  Laptops
-                </Link>
-              </li>
-              <li>
-                <Link href="/search?category=desktops" className="hover:text-foreground transition-colors">
-                  Desktops
-                </Link>
-              </li>
-              <li>
-                <Link href="/search?category=perifericos" className="hover:text-foreground transition-colors">
-                  Periféricos
-                </Link>
-              </li>
-              <li>
-                <Link href="/search?category=componentes" className="hover:text-foreground transition-colors">
-                  Componentes
-                </Link>
-              </li>
+              <li><Link href="/search?category=laptops" className="hover:text-foreground transition-colors">Laptops</Link></li>
+              <li><Link href="/search?category=desktops" className="hover:text-foreground transition-colors">Desktops</Link></li>
+              <li><Link href="/search?category=perifericos" className="hover:text-foreground transition-colors">Periféricos</Link></li>
+              <li><Link href="/search?category=componentes" className="hover:text-foreground transition-colors">Componentes</Link></li>
             </ul>
           </div>
 
@@ -48,26 +32,10 @@ export function Footer() {
           <div>
             <h3 className="font-semibold mb-4">Suporte</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>
-                <Link href="#" className="hover:text-foreground transition-colors">
-                  Central de Ajuda
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="hover:text-foreground transition-colors">
-                  Garantia
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="hover:text-foreground transition-colors">
-                  Devoluções
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="hover:text-foreground transition-colors">
-                  Rastreamento
-                </Link>
-              </li>
+              <li><Link href="/support/help-center" className="hover:text-foreground transition-colors">Central de Ajuda</Link></li>
+              <li><Link href="/support/warranty" className="hover:text-foreground transition-colors">Garantia</Link></li>
+              <li><Link href="/support/returns" className="hover:text-foreground transition-colors">Devoluções</Link></li>
+              <li><Link href="/support/tracking" className="hover:text-foreground transition-colors">Rastreamento</Link></li>
             </ul>
           </div>
 
@@ -75,26 +43,10 @@ export function Footer() {
           <div>
             <h3 className="font-semibold mb-4">Empresa</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>
-                <Link href="#" className="hover:text-foreground transition-colors">
-                  Sobre Nós
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="hover:text-foreground transition-colors">
-                  Política de Privacidade
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="hover:text-foreground transition-colors">
-                  Termos de Uso
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="hover:text-foreground transition-colors">
-                  Contato
-                </Link>
-              </li>
+              <li><Link href="/company/about" className="hover:text-foreground transition-colors">Sobre Nós</Link></li>
+              <li><Link href="/company/privacy" className="hover:text-foreground transition-colors">Política de Privacidade</Link></li>
+              <li><Link href="/company/terms" className="hover:text-foreground transition-colors">Termos de Uso</Link></li>
+              <li><Link href="/company/contact" className="hover:text-foreground transition-colors">Contato</Link></li>
             </ul>
           </div>
         </div>
