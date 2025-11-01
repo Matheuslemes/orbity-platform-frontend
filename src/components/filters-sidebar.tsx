@@ -13,15 +13,28 @@ export function FiltersSidebar() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="font-semibold mb-4">Filtros</h3>
+        <h3 className="mb-4 font-semibold">Filtros</h3>
       </div>
 
       <Accordion type="multiple" defaultValue={["price", "brand", "cpu"]} className="w-full">
         {/* Price Range */}
         <AccordionItem value="price">
           <AccordionTrigger>Faixa de Preço</AccordionTrigger>
-          <AccordionContent className="space-y-4">
-            <Slider value={priceRange} onValueChange={setPriceRange} max={15000} step={100} className="w-full" />
+          {/* pt-2 dá respiro em cima; evita que o thumb/graduation pareça “cortado” */}
+          <AccordionContent className="space-y-4 pt-2">
+            {/* px-1 só afasta um pouco do contorno do card/accordion */}
+            <div className="px-1">
+              {/* py-2 aumenta o espaço vertical reservado ao slider, evitando sobreposição visual */}
+              <Slider
+                value={priceRange}
+                onValueChange={setPriceRange}
+                max={15000}
+                step={100}
+                className="w-full py-2"
+                aria-label="Faixa de preço"
+              />
+            </div>
+
             <div className="flex items-center justify-between text-sm">
               <span className="tabular-nums">R$ {priceRange[0]}</span>
               <span className="tabular-nums">R$ {priceRange[1]}</span>
@@ -36,7 +49,7 @@ export function FiltersSidebar() {
             {["TechNova", "PowerRig", "AeroTech", "ViewMax", "KeyMaster"].map((brand) => (
               <div key={brand} className="flex items-center space-x-2">
                 <Checkbox id={`brand-${brand}`} />
-                <Label htmlFor={`brand-${brand}`} className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`brand-${brand}`} className="cursor-pointer text-sm font-normal">
                   {brand}
                 </Label>
               </div>
@@ -52,7 +65,7 @@ export function FiltersSidebar() {
               (cpu) => (
                 <div key={cpu} className="flex items-center space-x-2">
                   <Checkbox id={`cpu-${cpu}`} />
-                  <Label htmlFor={`cpu-${cpu}`} className="text-sm font-normal cursor-pointer">
+                  <Label htmlFor={`cpu-${cpu}`} className="cursor-pointer text-sm font-normal">
                     {cpu}
                   </Label>
                 </div>
@@ -75,7 +88,7 @@ export function FiltersSidebar() {
             ].map((gpu) => (
               <div key={gpu} className="flex items-center space-x-2">
                 <Checkbox id={`gpu-${gpu}`} />
-                <Label htmlFor={`gpu-${gpu}`} className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`gpu-${gpu}`} className="cursor-pointer text-sm font-normal">
                   {gpu}
                 </Label>
               </div>
@@ -90,7 +103,7 @@ export function FiltersSidebar() {
             {["8GB", "16GB", "32GB", "64GB"].map((ram) => (
               <div key={ram} className="flex items-center space-x-2">
                 <Checkbox id={`ram-${ram}`} />
-                <Label htmlFor={`ram-${ram}`} className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`ram-${ram}`} className="cursor-pointer text-sm font-normal">
                   {ram}
                 </Label>
               </div>
@@ -105,7 +118,7 @@ export function FiltersSidebar() {
             {["256GB", "512GB", "1TB", "2TB", "NVMe", "SATA"].map((storage) => (
               <div key={storage} className="flex items-center space-x-2">
                 <Checkbox id={`storage-${storage}`} />
-                <Label htmlFor={`storage-${storage}`} className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`storage-${storage}`} className="cursor-pointer text-sm font-normal">
                   {storage}
                 </Label>
               </div>
@@ -120,7 +133,7 @@ export function FiltersSidebar() {
             {['13"', '14"', '15"', '16"', "60Hz", "120Hz", "144Hz", "240Hz"].map((display) => (
               <div key={display} className="flex items-center space-x-2">
                 <Checkbox id={`display-${display}`} />
-                <Label htmlFor={`display-${display}`} className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`display-${display}`} className="cursor-pointer text-sm font-normal">
                   {display}
                 </Label>
               </div>
@@ -135,7 +148,7 @@ export function FiltersSidebar() {
             {["Novo", "Recondicionado"].map((condition) => (
               <div key={condition} className="flex items-center space-x-2">
                 <Checkbox id={`condition-${condition}`} />
-                <Label htmlFor={`condition-${condition}`} className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`condition-${condition}`} className="cursor-pointer text-sm font-normal">
                   {condition}
                 </Label>
               </div>

@@ -42,14 +42,12 @@ export default function SearchPage() {
   if (searchParams.get("brand")) activeFilters.push(searchParams.get("brand")!)
 
   const removeFilter = (filter: string) => {
-    // In real implementation, update URL params
     const params = new URLSearchParams(searchParams.toString())
     params.delete(filter)
     router.push(`/search?${params.toString()}`)
   }
 
   const clearAllFilters = () => {
-    // In real implementation, clear URL params
     router.push("/search")
   }
 
@@ -74,11 +72,11 @@ export default function SearchPage() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col gap-8 lg:flex-row">
           {/* Sidebar Filters - Desktop */}
-          <aside className="hidden lg:block w-64 flex-shrink-0">
+          <aside className="hidden w-64 flex-shrink-0 lg:block">
             <div
-              className="sticky top-20 p-6 rounded-lg border"
+              className="sticky top-20 rounded-lg border p-6"
               style={{ backgroundColor: "var(--bg-elev)", borderColor: "var(--border)" }}
             >
               <FiltersSidebar />
@@ -88,15 +86,15 @@ export default function SearchPage() {
           {/* Main Content */}
           <div className="flex-1">
             {/* Results Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-muted-foreground">
                   {pagination?.total || 0} resultado{pagination?.total !== 1 ? "s" : ""}
                 </span>
                 {activeFilters.length > 0 && (
                   <>
                     <span className="text-sm text-muted-foreground">•</span>
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex flex-wrap items-center gap-2">
                       {activeFilters.map((filter) => (
                         <Badge
                           key={filter}
@@ -138,7 +136,7 @@ export default function SearchPage() {
 
                 {/* View Mode */}
                 <div
-                  className="hidden sm:flex items-center gap-1 border rounded-md p-1"
+                  className="hidden items-center gap-1 rounded-md border p-1 sm:flex"
                   style={{ borderColor: "var(--border)" }}
                 >
                   <Button
@@ -163,7 +161,7 @@ export default function SearchPage() {
 
             {/* Products Grid */}
             {isLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {[...Array(6)].map((_, i) => (
                   <ProductSkeleton key={i} />
                 ))}
@@ -171,12 +169,21 @@ export default function SearchPage() {
             ) : products.length > 0 ? (
               <div
                 className={
-                  viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"
+                  viewMode === "grid"
+                    ? "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+                    : "flex flex-col gap-4"
                 }
               >
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
+                {products.map((product) => {
+                  // Normalização: garante os campos esperados pelo ProductCard
+                  const productNormalized = {
+                    ...product,
+                    brand: (product as any).brand ?? "",
+                    badges: ((product as any).badges ?? []) as string[],
+                  } as any
+
+                  return <ProductCard key={product.id} product={productNormalized} />
+                })}
               </div>
             ) : (
               <EmptyState />
@@ -184,7 +191,7 @@ export default function SearchPage() {
 
             {/* Pagination */}
             {pagination && pagination.total > pagination.pageSize && (
-              <div className="flex justify-center mt-12">
+              <div className="mt-12 flex justify-center">
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>
                     Anterior
